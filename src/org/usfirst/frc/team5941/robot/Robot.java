@@ -31,7 +31,9 @@ public class Robot extends IterativeRobot {
 	private static final String kDefaultAuto = "Default";
 	private static final String kCustomAuto = "My Auto";
 	private AutoCode m_autoSelected;
+	private Option optionSelected;
 	private SendableChooser<AutoCode> m_chooser = new SendableChooser<>();
+	private SendableChooser<Option> option_chooser = new SendableChooser<>();
 	
 	
 	private XboxController xbox = new XboxController(0);
@@ -43,7 +45,9 @@ public class Robot extends IterativeRobot {
 	private VictorSP wheelR = new VictorSP(4);
 	private VictorSP wheelL = new VictorSP(5);
 	
-	private Servo claw = new Servo(9);
+	private VictorSP clawTest = new VictorSP(9);
+	
+	private Servo claw = new Servo(8);
 	
 	final int closeClawAngle = 65;
 	public boolean clawClosed = true;
@@ -58,9 +62,21 @@ public class Robot extends IterativeRobot {
 	
 	public String gameData;
 	
+	Side switchSide;
+	Side scaleSide;
+	Side robotSide;
+	
 	public enum AutoCode
 	{
 		left, right, middle, test
+	}
+	
+	enum Side {
+		left, right
+	}
+	
+	enum Option{
+		_switch, _scale
 	}
 	
 	boolean runAuto = true;
@@ -76,6 +92,11 @@ public class Robot extends IterativeRobot {
 		m_chooser.addObject("Right", AutoCode.right);
 		m_chooser.addDefault("Test", AutoCode.test);
 		SmartDashboard.putData("Auto choices", m_chooser);
+		
+		option_chooser.addObject("Switch", Option._switch);
+		option_chooser.addObject("Scale", Option._scale);
+		SmartDashboard.putData("Option", option_chooser);
+		
 		UsbCamera camera1 = CameraServer.getInstance().startAutomaticCapture();
 		UsbCamera camera2 = CameraServer.getInstance().startAutomaticCapture();
 
@@ -95,6 +116,8 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousInit() {
 		m_autoSelected = m_chooser.getSelected();
+		optionSelected = option_chooser.getSelected();
+		
 		// autoSelected = SmartDashboard.getString("Auto Selector",
 		// defaultAuto);
 		System.out.println("Auto selected: " + m_autoSelected);
@@ -108,50 +131,88 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
+
 		
-		switch (m_autoSelected) {
-			case middle:
-				default:
-				// Put middle auto code here
-					if(runAuto)
-					{
-						if(gameData.charAt(0) == 'L')
-						{
-							if(gameData.charAt(1) == 'L')
-							{
-								SmartDashboard.putString("AutoCode", "Go Left, then Left");
-							}
-							else
-							{
-								SmartDashboard.putString("AutoCode", "Go Left, then Right");
-							}
-							
-						} else 
-						{
-							if(gameData.charAt(1) == 'L')
-							{
-								SmartDashboard.putString("AutoCode", "Go Right, then Left");
-							}
-							else
-							{
-								SmartDashboard.putString("AutoCode", "Go Right, then Right");
-							}
-							runAuto = false;
-						}
-					}
-				break;
-			case left:
-				// Put left auto code here
-				break;
-			case right:
-				// Put right auto code here
-				break;
-			case test:
-				// Put test auto code here
-				break;
+		
+		if(gameData.charAt(0) == 'L') {
+			switchSide = Side.left;
+		}else {
+			switchSide = Side.right;
+		}
+		
+		if(gameData.charAt(1) == 'L') {
+			scaleSide = Side.left;
+		}else {
+			scaleSide = Side.right;
+		}
+		
+		if(m_autoSelected == AutoCode.left) {
+			robotSide = Side.left;
+		}else {
+			robotSide = Side.right;
+		}
+		
+		
+		if(robotSide == scaleSide && robotSide == switchSide) {
+			if(optionSelected == Option._switch) {
+				//switch(robotSide);
+			}else if(optionSelected == Option._scale) {
+				//scale(robotSide);
+			}
+		}else if(robotSide == switchSide) {
+			//switch(robotSide);
+		}else if(robotSide == scaleSide) {
+			//scale(robotSide);
+		}else {
+			//goToNullFromBeginning(robotSide);
 		}
 	}
-
+	
+	public void initialExtend() {
+		//retract to rest
+		//extend 15 inches, gearing ratio and stuff
+	}
+	
+	public void dropCube(int heightInches) {
+		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
+		//pivot(pivotDegree);
+		//extend arm by height param
+		//forward until encoder senses stop, record
+		//place cube - extend arm, open claw
+		//retract arm
+		//go backwards by the same length as forwards variable recorded by encoder
+		//pivot(pivotDegree);
+	}
+	
+	public void goToNull(int distanceInches) {
+		goForward(distanceInches);
+	}
+	
+	public void goToNullFromBeginning(){
+		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
+		if(robotSide == scaleSide) {
+			goForward(300);
+		}else {
+			goForward(196);
+			//pivot(pivotDegree);
+			//go forward until encoder senses stop
+			//pivot(-pivotDegree);
+			goForward(104);
+		}
+	}
+	
+	public void _switch() {
+		goForward(140);
+		dropCube(0);
+		goToNull(160);
+	}
+	
+	public void scale() {
+		goForward(300);
+		dropCube(55);
+		goToNull(0);
+	}
+	
 	/**
 	 * This function is called periodically during operator control.
 	 */
@@ -166,10 +227,12 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putString("Left Speed", "" + left);
 		
 		setRightMotor(right);
-		setLeftMotor(left);
+		//setLeftMotor(left);
+		
+		clawTest.set(left);
 		
 		if(xbox.getBButton()) {
-			goForward(4);
+			goForward(48);
 		}
 		
 		if(xbox.getStartButtonPressed())
@@ -219,17 +282,17 @@ public class Robot extends IterativeRobot {
 		wheelR.set(-0.25 * negate);
 	}
 	
-	private void goForward(int distanceFeet)
+	private void goForward(int distanceInches)
 	{
 		rightEncoder.reset();
 		final double maximumSpeed = 0.5;
 		
-		final int totalTicks = ticksPerFoot * distanceFeet;
+		final int totalTicks = ticksPerFoot * distanceInches / 12;
 		
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
 		
-		while(rightEncoder.getRaw() < ticksPerFoot * (distanceFeet))
+		while(rightEncoder.getRaw() < ticksPerFoot * (distanceInches) / 12)
 		{ }
 		
 //		setMotorSpeed(0.35);
