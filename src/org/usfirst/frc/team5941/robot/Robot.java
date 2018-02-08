@@ -175,7 +175,7 @@ public class Robot extends IterativeRobot {
 	
 	public void dropCube(int heightInches) {
 		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
-		//pivot(pivotDegree);
+		pivot(pivotDegree);
 		//extend arm by height param
 		//forward until encoder senses stop, record
 		//place cube - extend arm, open claw
@@ -329,6 +329,24 @@ public class Robot extends IterativeRobot {
 
 		setLeftMotor(0);
 	}
+	
+	private void pivot(int degree) {
+		//ticksFor90 makes the robot pivot 90 degrees by default, so subtracting 90 from the degree parameter will cancel this out.
+		degree = degree - 90;
+		leftEncoder.reset();
+		rightEncoder.reset();
+		
+		setLeftMotor(0.85);
+		while(leftEncoder.getRaw() < ticksFor90)
+		{}
+		setLeftMotor(0);
+		
+		setRightMotor(-0.85);
+		while(leftEncoder.getRaw() < ticksFor90)
+		{}
+		setRightMotor(0);
+	}
+
 	
 	private void swingLeft()
 	{
