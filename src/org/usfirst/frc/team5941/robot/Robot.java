@@ -9,6 +9,7 @@ package org.usfirst.frc.team5941.robot;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.XboxController;
@@ -17,7 +18,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.cscore.UsbCamera;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -29,13 +30,15 @@ import edu.wpi.cscore.UsbCamera;
 public class Robot extends IterativeRobot {
 	private static final int robotWidthInches = 25;
 	private static final double turnCircumference = robotWidthInches * Math.PI;
-	private static final double speedFactor = 0.4;
+	private static final double speedFactor = 0.6;
 
 	private AutoCode m_autoSelected;
 	private Option optionSelected;
 	private SendableChooser<AutoCode> m_chooser = new SendableChooser<>();
 	private SendableChooser<Option> option_chooser = new SendableChooser<>();
 	
+	public static final GenericHID.RumbleType kLeftRumble = null;
+	public static final GenericHID.RumbleType kRightRumble = null;
 	
 	private XboxController xbox = new XboxController(0);
 	
@@ -76,6 +79,10 @@ public class Robot extends IterativeRobot {
 	
 	enum Option{
 		_switch, _scale
+	}
+	
+	enum RumbleType {
+		KLeftRumble, KRightRumble
 	}
 	
 	boolean runAuto = true;
@@ -194,6 +201,16 @@ public class Robot extends IterativeRobot {
 		}else {
 			goForward(196);
 			pivot(pivotDegree);
+			setLeftMotor(0.4);
+			setRightMotor(0.4);
+			leftEncoder.reset();
+			rightEncoder.reset();
+			int lastEncoderValue = leftEncoder.getRaw();
+			while(leftEncoder.getRaw() > lastEncoderValue) {
+				lastEncoderValue = leftEncoder.getRaw();
+			}
+			setLeftMotor(0);
+			setRightMotor(0);
 			//go forward until encoder senses stop
 			pivot(-pivotDegree);
 			goForward(104);
@@ -220,6 +237,7 @@ public class Robot extends IterativeRobot {
 		double leftSpeed = -xbox.getRawAxis(1) * speedFactor;
 		double rightSpeed = -xbox.getRawAxis(5) * speedFactor;
 		
+		SmartDashboard.putString("VictorSP Value", "" + clawTest.getRaw());
 		SmartDashboard.putString("Right Encoder", "" + rightEncoder.getRaw());
 		SmartDashboard.putString("Left Encoder", "" + leftEncoder.getRaw());
 		SmartDashboard.putString("Right Speed", "" + rightSpeed);
@@ -234,11 +252,21 @@ public class Robot extends IterativeRobot {
 			goForward(48);
 		}
 		
-		if(xbox.getStartButtonPressed())
-		{
-			rightEncoder.reset();
-			leftEncoder.reset();
+
+		if(xbox.getStartButton()) {
+			//xbox.setRumble(kLeftRumble, 1.0);
+			xbox.setRumble(kRightRumble, 1.0);
 		}
+		
+		if(xbox.getBackButton()) {
+			//xbox.setRumble(kLeftRumble, 0.0);
+			xbox.setRumble(kRightRumble, 0.0);
+		}
+//		if(xbox.getStartButtonPressed())
+//		{
+//			rightEncoder.reset();
+//			leftEncoder.reset();
+//		}
 				
 		
 		if(xbox.getAButtonPressed())
