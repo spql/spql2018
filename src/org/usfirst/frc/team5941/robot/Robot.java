@@ -41,7 +41,9 @@ public class Robot extends IterativeRobot {
 	public static final GenericHID.RumbleType kRightRumble = null;
 	
 	private XboxController xbox = new XboxController(0);
-	
+    
+    private boolean rumbleOn = false;
+
 	private VictorSP right = new VictorSP(0);
 	private VictorSP left = new VictorSP(1);	
 	
@@ -78,7 +80,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	enum Option{
-		_switch, _scale
+		_switch, scale
 	}
 	
 	enum RumbleType {
@@ -100,7 +102,7 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putData("Auto choices", m_chooser);
 		
 		option_chooser.addObject("Switch", Option._switch);
-		option_chooser.addObject("Scale", Option._scale);
+		option_chooser.addObject("Scale", Option.scale);
 		SmartDashboard.putData("Option", option_chooser);
 		
 		CameraServer.getInstance().startAutomaticCapture();
@@ -162,7 +164,7 @@ public class Robot extends IterativeRobot {
 		if(robotSide == scaleSide && robotSide == switchSide) {
 			if(optionSelected == Option._switch) {
 				_switch();
-			}else if(optionSelected == Option._scale) {
+			}else if(optionSelected == Option.scale) {
 				scale();
 			}
 		}else if(robotSide == switchSide) {
@@ -263,18 +265,23 @@ public class Robot extends IterativeRobot {
 		clawTest.set(leftSpeed);
 		
 		if(xbox.getBButton()) {
-			go(48);
+            //commenting out for safety, only uncomment when testing
+			//go(48);
 		}
 		
 
 		if(xbox.getStartButton()) {
-			//xbox.setRumble(kLeftRumble, 1.0);
-			xbox.setRumble(kLeftRumble, 1.0);
+            leftEncoder.reset();
+            rightEncoder.reset();
 		}
 		
 		if(xbox.getBackButton()) {
-			//xbox.setRumble(kLeftRumble, 0.0);
-			xbox.setRumble(kLeftRumble, 0.0);
+            rumbleOn = (rumbleOn) ? false : true;
+            if(rumbleOn){
+                xbox.setRumble(kLeftRumble, 1.0);
+            }else{
+                xbox.setRumble(kLeftRumble, 0.0);
+            }
 		}
 //		if(xbox.getStartButtonPressed())
 //		{
@@ -311,7 +318,7 @@ public class Robot extends IterativeRobot {
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
 		
-		while(rightEncoder.getRaw() < totalTicks)
+		while(Math.abs(rightEncoder.getRaw()) < totalTicks)
 		{ }
 		
 		final double stopValue = (distanceInches > 0) ? -0.1 : 0.1;
