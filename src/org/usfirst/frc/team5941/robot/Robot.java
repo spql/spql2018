@@ -218,18 +218,18 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		double left = -xbox.getRawAxis(1) * speedFactor;
-		double right = -xbox.getRawAxis(5) * speedFactor;
+		double leftSpeed = -xbox.getRawAxis(1) * speedFactor;
+		double rightSpeed = -xbox.getRawAxis(5) * speedFactor;
 		
 		SmartDashboard.putString("Right Encoder", "" + rightEncoder.getRaw());
 		SmartDashboard.putString("Left Encoder", "" + leftEncoder.getRaw());
-		SmartDashboard.putString("Right Speed", "" + right);
-		SmartDashboard.putString("Left Speed", "" + left);
+		SmartDashboard.putString("Right Speed", "" + rightSpeed);
+		SmartDashboard.putString("Left Speed", "" + leftSpeed);
 		
-		setRightMotor(right);
+		setRightMotor(rightSpeed);
 		//setLeftMotor(left);
 		
-		clawTest.set(left);
+		clawTest.set(leftSpeed);
 		
 		if(xbox.getBButton()) {
 			goForward(48);
