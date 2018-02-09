@@ -184,47 +184,61 @@ public class Robot extends IterativeRobot {
 		pivot(pivotDegree);
 		//extend arm by height param
 		//forward until encoder senses stop, record
+		int forwardValue = goForwardUntilStop();
 		//place cube - extend arm, open claw
 		//retract arm
-		//go backwards by the same length as forwards variable recorded by encoder
+		go(-forwardValue / ticksPerInch);
 		pivot(pivotDegree);
 	}
 	
 	public void goToNull(int distanceInches) {
-		goForward(distanceInches);
+		go(distanceInches);
 	}
 	
 	public void goToNullFromBeginning(){
 		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
 		if(robotSide == scaleSide) {
-			goForward(300);
+			go(300);
 		}else {
-			goForward(196);
+			go(196);
 			pivot(pivotDegree);
-			setLeftMotor(0.4);
-			setRightMotor(0.4);
-			leftEncoder.reset();
-			rightEncoder.reset();
-			int lastEncoderValue = leftEncoder.getRaw();
-			while(leftEncoder.getRaw() > lastEncoderValue) {
-				lastEncoderValue = leftEncoder.getRaw();
-			}
-			setLeftMotor(0);
-			setRightMotor(0);
+			
 			//go forward until encoder senses stop
 			pivot(-pivotDegree);
-			goForward(104);
+			go(104);
 		}
 	}
 	
+	public int goForwardUntilStop() {
+		setLeftMotor(0.4);
+		setRightMotor(0.4);
+		leftEncoder.reset();
+		rightEncoder.reset();
+		int lastEncoderValue = leftEncoder.getRaw();
+		while(leftEncoder.getRaw() > lastEncoderValue) {
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			lastEncoderValue = leftEncoder.getRaw();
+		}
+		setLeftMotor(0);
+		setRightMotor(0);
+		
+		return leftEncoder.getRaw();
+		
+	}
+	
 	public void _switch() {
-		goForward(140);
+		go(140);
 		dropCube(0);
 		goToNull(160);
 	}
 	
 	public void scale() {
-		goForward(300);
+		go(300);
 		dropCube(55);
 		goToNull(0);
 	}
@@ -249,18 +263,18 @@ public class Robot extends IterativeRobot {
 		clawTest.set(leftSpeed);
 		
 		if(xbox.getBButton()) {
-			goForward(48);
+			go(48);
 		}
 		
 
 		if(xbox.getStartButton()) {
 			//xbox.setRumble(kLeftRumble, 1.0);
-			xbox.setRumble(kRightRumble, 1.0);
+			xbox.setRumble(kLeftRumble, 1.0);
 		}
 		
 		if(xbox.getBackButton()) {
 			//xbox.setRumble(kLeftRumble, 0.0);
-			xbox.setRumble(kRightRumble, 0.0);
+			xbox.setRumble(kLeftRumble, 0.0);
 		}
 //		if(xbox.getStartButtonPressed())
 //		{
@@ -287,12 +301,12 @@ public class Robot extends IterativeRobot {
 		
 	}
 
-	private void goForward(int distanceInches)
+	private void go(int distanceInches)
 	{
 		rightEncoder.reset();
-		final double maximumSpeed = 0.5;
+		final double maximumSpeed = (distanceInches > 0) ? 0.5 : -0.5;
 		
-		final int totalTicks = ticksPerInch * distanceInches;
+		final int totalTicks = Math.abs(ticksPerInch * distanceInches);
 		
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
@@ -300,13 +314,9 @@ public class Robot extends IterativeRobot {
 		while(rightEncoder.getRaw() < totalTicks)
 		{ }
 		
-//		setMotorSpeed(0.35);
-//		while(rightEncoder.getRaw() < ticksPerFoot * distanceFeet)
-//		{ }
-
-		//setMotorSpeed(-0.1);
-		setLeftMotor(-0.1);
-		setRightMotor(-0.1);
+		final double stopValue = (distanceInches > 0) ? -0.1 : 0.1;
+		setLeftMotor(stopValue);
+		setRightMotor(stopValue);
 		
 		try {
 			Thread.sleep(100);
