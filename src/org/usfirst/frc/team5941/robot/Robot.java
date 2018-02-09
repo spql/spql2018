@@ -27,9 +27,10 @@ import edu.wpi.cscore.UsbCamera;
  * project.
  */
 public class Robot extends IterativeRobot {
+	private static final int robotWidthInches = 25;
+	private static final double turnCircumference = robotWidthInches * Math.PI;
 	private static final double speedFactor = 0.4;
-	private static final String kDefaultAuto = "Default";
-	private static final String kCustomAuto = "My Auto";
+
 	private AutoCode m_autoSelected;
 	private Option optionSelected;
 	private SendableChooser<AutoCode> m_chooser = new SendableChooser<>();
@@ -37,13 +38,9 @@ public class Robot extends IterativeRobot {
 	
 	
 	private XboxController xbox = new XboxController(0);
-	private VictorSP rightA = new VictorSP(0);
-	private VictorSP rightB = new VictorSP(1);
-	private VictorSP leftA = new VictorSP(2);
-	private VictorSP leftB = new VictorSP(3);
 	
-	private VictorSP wheelR = new VictorSP(4);
-	private VictorSP wheelL = new VictorSP(5);
+	private VictorSP right = new VictorSP(0);
+	private VictorSP left = new VictorSP(1);	
 	
 	private VictorSP clawTest = new VictorSP(9);
 	
@@ -57,8 +54,10 @@ public class Robot extends IterativeRobot {
 	
 	Timer t = new Timer();
 	
-	final int ticksPerFoot = 545;
-	final int ticksFor90 = 1783;
+	final static int ticksPerFoot = 545;
+	private static final int ticksPerInch = ticksPerFoot / 12;
+	//used for pivoting
+	final int ticksFor90 = (int) ((turnCircumference / 4) * ticksPerFoot / 12);
 	
 	public String gameData;
 	
@@ -97,8 +96,8 @@ public class Robot extends IterativeRobot {
 		option_chooser.addObject("Scale", Option._scale);
 		SmartDashboard.putData("Option", option_chooser);
 		
-		UsbCamera camera1 = CameraServer.getInstance().startAutomaticCapture();
-		UsbCamera camera2 = CameraServer.getInstance().startAutomaticCapture();
+		CameraServer.getInstance().startAutomaticCapture();
+		CameraServer.getInstance().startAutomaticCapture();
 
 	}
 
@@ -155,16 +154,16 @@ public class Robot extends IterativeRobot {
 		
 		if(robotSide == scaleSide && robotSide == switchSide) {
 			if(optionSelected == Option._switch) {
-				//switch(robotSide);
+				_switch();
 			}else if(optionSelected == Option._scale) {
-				//scale(robotSide);
+				scale();
 			}
 		}else if(robotSide == switchSide) {
-			//switch(robotSide);
+			_switch();
 		}else if(robotSide == scaleSide) {
-			//scale(robotSide);
+			scale();
 		}else {
-			//goToNullFromBeginning(robotSide);
+			goToNullFromBeginning();
 		}
 	}
 	
@@ -181,7 +180,7 @@ public class Robot extends IterativeRobot {
 		//place cube - extend arm, open claw
 		//retract arm
 		//go backwards by the same length as forwards variable recorded by encoder
-		//pivot(pivotDegree);
+		pivot(pivotDegree);
 	}
 	
 	public void goToNull(int distanceInches) {
@@ -194,9 +193,9 @@ public class Robot extends IterativeRobot {
 			goForward(300);
 		}else {
 			goForward(196);
-			//pivot(pivotDegree);
+			pivot(pivotDegree);
 			//go forward until encoder senses stop
-			//pivot(-pivotDegree);
+			pivot(-pivotDegree);
 			goForward(104);
 		}
 	}
@@ -241,22 +240,6 @@ public class Robot extends IterativeRobot {
 			leftEncoder.reset();
 		}
 				
-		if(xbox.getXButtonPressed()) //Pull in
-		{
-			handleCube(1);
-		}
-		
-		
-		if(xbox.getYButtonPressed()) //Push out
-		{
-			handleCube(-1);
-		}
-		
-		if(t.get() > 0.7)
-		{
-			wheelL.set(0);
-			wheelR.set(0);
-		}
 		
 		if(xbox.getAButtonPressed())
 		{
@@ -276,23 +259,17 @@ public class Robot extends IterativeRobot {
 		
 	}
 
-	private void handleCube(int negate) {
-		t.start();
-		wheelL.set(0.25  * negate);
-		wheelR.set(-0.25 * negate);
-	}
-	
 	private void goForward(int distanceInches)
 	{
 		rightEncoder.reset();
 		final double maximumSpeed = 0.5;
 		
-		final int totalTicks = ticksPerFoot * distanceInches / 12;
+		final int totalTicks = ticksPerInch * distanceInches;
 		
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
 		
-		while(rightEncoder.getRaw() < ticksPerFoot * (distanceInches) / 12)
+		while(rightEncoder.getRaw() < totalTicks)
 		{ }
 		
 //		setMotorSpeed(0.35);
@@ -315,57 +292,43 @@ public class Robot extends IterativeRobot {
 		
 	}
 	
-	private void swingRight()
-	{
-		leftEncoder.reset();		
-		setLeftMotor(0.85);
-		
-		while(leftEncoder.getRaw() < ticksFor90 - 100)
-		{}
-		
-		setLeftMotor(0.45);
-		while(leftEncoder.getRaw() < ticksFor90)
-		{}
-
-		setLeftMotor(0);
-	}
-	
 	private void pivot(int degree) {
-		//ticksFor90 makes the robot pivot 90 degrees by default, so subtracting 90 from the degree parameter will cancel this out.
-		degree = degree - 90;
+		
+		final int fractionOfCircle = 360 / degree;
+		final int ticksForDegree = Math.abs((int) ((turnCircumference / fractionOfCircle) * ticksPerInch));
+		
 		leftEncoder.reset();
 		rightEncoder.reset();
 		
-		setLeftMotor(0.85);
-		while(leftEncoder.getRaw() < ticksFor90)
-		{}
+		final double speed = (degree > 0) ? 0.5 : -0.5;
+		
+		setLeftMotor(speed);
+		setRightMotor(-speed);
+		
+		while(true)
+		{
+			boolean rightDone = Math.abs(rightEncoder.getRaw()) > ticksForDegree;
+			boolean leftDone = Math.abs(leftEncoder.getRaw()) > ticksForDegree;
+			
+			if(rightDone) {
+				setRightMotor(0);
+			}
+			if(leftDone) {
+				setLeftMotor(0);
+			}
+			
+			if(rightDone && leftDone) {
+				break;
+			}
+		}
+		
 		setLeftMotor(0);
-		
-		setRightMotor(-0.85);
-		while(leftEncoder.getRaw() < ticksFor90)
-		{}
 		setRightMotor(0);
-	}
-
-	
-	private void swingLeft()
-	{
-		rightEncoder.reset();		
-		setRightMotor(0.85);
 		
-		while(rightEncoder.getRaw() < ticksFor90 - 100)
-		{}
-		
-		setRightMotor(0.45);
-		while(rightEncoder.getRaw() < ticksFor90)
-		{}
-
-		setRightMotor(0);
 	}
 
 	private void setLeftMotor(double speed) {
-		leftA.set(speed);
-		leftB.set(speed);
+		left.set(speed);
 	}
 
 	private void setMotorSpeed(double speed) 
@@ -377,8 +340,7 @@ public class Robot extends IterativeRobot {
 	private void setRightMotor(double speed) {
 		//multiplying by 0.94 is a fix for weird offset between left and right motors
 		speed = speed * 0.94;
-		rightA.set(-speed);
-		rightB.set(-speed);
+		right.set(-speed);
 	}
 
 	/**
