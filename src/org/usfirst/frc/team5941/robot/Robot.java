@@ -9,17 +9,27 @@ package org.usfirst.frc.team5941.robot;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.GenericHID.Hand;
+import edu.wpi.first.wpilibj.DigitalInput;
 
+/*
+ * 
+ * time to eject cube
+ * veering
+ * goForwardUntilStop()
+ * placing cubes on switch and scale - time
+ * middle()
+ * teleop - both controllers
+ * what do we do after we place a cube? Go to Null?
+ * 
+ * 
+ */
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the IterativeRobot
@@ -30,62 +40,54 @@ import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 public class Robot extends IterativeRobot {
 	private static final int robotWidthInches = 25;
 	private static final double turnCircumference = robotWidthInches * Math.PI;
-	private static final double speedFactor = 0.6;
+	private static final double speedFactor = 0.8;
+	private static final double clawSpeedFactor = 0.8;
+	
+	private SendableChooser<Side> robotSide_chooser = new SendableChooser<>();
+	private SendableChooser<Option> preference_chooser = new SendableChooser<>();
 
-	private AutoCode m_autoSelected;
-	private Option optionSelected;
-	private SendableChooser<AutoCode> m_chooser = new SendableChooser<>();
-	private SendableChooser<Option> option_chooser = new SendableChooser<>();
-	
-	public static final GenericHID.RumbleType kLeftRumble = null;
-	public static final GenericHID.RumbleType kRightRumble = null;
-	
-	private XboxController xbox = new XboxController(0);
-    
-    private boolean rumbleOn = false;
+	private XboxController xbox0 = new XboxController(0);
+	private XboxController xbox1 = new XboxController(1);
 
-	private VictorSP right = new VictorSP(0);
-	private VictorSP left = new VictorSP(1);	
+	private VictorSP rightDrive = new VictorSP(1);
+	private VictorSP leftDrive = new VictorSP(0);	
 	
-	private VictorSP clawTest = new VictorSP(9);
+	private VictorSP lift = new VictorSP(4);
 	
-	private Servo claw = new Servo(8);
+	private VictorSP leftClaw = new VictorSP(8);
+	private VictorSP rightClaw = new VictorSP(9);
+
+	final double clawSpeedMax = 0.3;
 	
-	final int closeClawAngle = 65;
-	public boolean clawClosed = true;
+	DigitalInput limitSwitch = new DigitalInput(9);
 	
-	Encoder rightEncoder = new Encoder(0, 1, true, Encoder.EncodingType.k4X);
-	Encoder leftEncoder = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
-	
-	Timer t = new Timer();
+	Encoder rightDriveEncoder = new Encoder(0, 1, true, Encoder.EncodingType.k4X);
+	Encoder leftDriveEncoder = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
 	
 	final static int ticksPerFoot = 545;
+	
 	private static final int ticksPerInch = ticksPerFoot / 12;
+	
 	//used for pivoting
 	final int ticksFor90 = (int) ((turnCircumference / 4) * ticksPerFoot / 12);
 	
 	public String gameData;
 	
+	
 	Side switchSide;
 	Side scaleSide;
 	Side robotSide;
+	Option preference;
 	
-	public enum AutoCode
-	{
-		left, right, middle, test
-	}
 	
 	enum Side {
-		left, right
+		left, middle, right
 	}
 	
-	enum Option{
-		_switch, scale
+	enum Option {
+		_switch, scale, crossSwitch, crossScale
 	}
-	
-	enum RumbleType {
-		KLeftRumble, KRightRumble
-	}
+
 	
 	boolean runAuto = true;
 
@@ -95,18 +97,19 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void robotInit() {
-		m_chooser.addObject("Middle", AutoCode.middle);
-		m_chooser.addObject("Left", AutoCode.left);
-		m_chooser.addObject("Right", AutoCode.right);
-		m_chooser.addDefault("Test", AutoCode.test);
-		SmartDashboard.putData("Auto choices", m_chooser);
+		robotSide_chooser.addObject("Middle", Side.middle);
+		robotSide_chooser.addObject("Left", Side.left);
+		robotSide_chooser.addObject("Right", Side.right);
+		SmartDashboard.putData("Robot Starting Position", robotSide_chooser);
 		
-		option_chooser.addObject("Switch", Option._switch);
-		option_chooser.addObject("Scale", Option.scale);
-		SmartDashboard.putData("Option", option_chooser);
+		preference_chooser.addObject("switch", Option._switch);
+		preference_chooser.addObject("scale", Option.scale);
+		SmartDashboard.putData("Preference", preference_chooser);
 		
-		CameraServer.getInstance().startAutomaticCapture();
-		CameraServer.getInstance().startAutomaticCapture();
+		while(robotSide == null || preference == null) {
+			robotSide = robotSide_chooser.getSelected();
+			preference = preference_chooser.getSelected();
+		}
 
 	}
 
@@ -123,28 +126,13 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousInit() {
-		m_autoSelected = m_chooser.getSelected();
-		optionSelected = option_chooser.getSelected();
-		
-		// autoSelected = SmartDashboard.getString("Auto Selector",
-		// defaultAuto);
-		System.out.println("Auto selected: " + m_autoSelected);
-		
-		gameData = DriverStation.getInstance().getGameSpecificMessage();
-		
-	}
-
-	/**
-	 * This function is called periodically during autonomous.
-	 */
-	@Override
-	public void autonomousPeriodic() {
-
-		
+		while(gameData.length() < 1) {
+			gameData = DriverStation.getInstance().getGameSpecificMessage();
+		}
 		
 		if(gameData.charAt(0) == 'L') {
 			switchSide = Side.left;
-		}else {
+		} else {
 			switchSide = Side.right;
 		}
 		
@@ -153,95 +141,207 @@ public class Robot extends IterativeRobot {
 		}else {
 			scaleSide = Side.right;
 		}
+
+
+
+//		if(switchSide == robotSide && scaleSide == robotSide) {
+//			if(preference == Option._switch) {
+//				_switch();
+//			} else {
+//				scale();
+//			}
+//		} else if(switchSide == robotSide){
+//			_switch();
+//		} else if(scaleSide == robotSide) {
+//			scale();
+//		} else if(switchSide == scaleSide){
+//			crossSwitch();
+//		} else if(robotSide == Side.middle) {
+//			middle();
+//		}
 		
-		if(m_autoSelected == AutoCode.left) {
-			robotSide = Side.left;
-		}else {
-			robotSide = Side.right;
+		//for testing only
+		//go(140, 0.5);
+
+		if(gameData.charAt(1) == "L"){
+			go(12, 0.3);
+		}else if(gameData.charAt(1) == "R"){
+			go(-12, 0.3);
 		}
-		
-		
-		if(robotSide == scaleSide && robotSide == switchSide) {
-			if(optionSelected == Option._switch) {
-				_switch();
-			}else if(optionSelected == Option.scale) {
-				scale();
-			}
-		}else if(robotSide == switchSide) {
-			_switch();
-		}else if(robotSide == scaleSide) {
-			scale();
-		}else {
-			goToNullFromBeginning();
+
+	}
+	
+	//TODO:
+	public void crossSwitch() {
+		if(robotSide == Side.left) {
+			go(219, 0.8);
+			pivot(90);
+			goForwardUntilStop(0.8);
+			//this extra 10 inches is to fix veering
+			go(10, 0.8);
+			go(-10, 0.8);
+			pivot(90);
+			go(79, 0.8);
+			pivot(90);
+			goForwardUntilStop(0.8);
+			//TODO: place cube
+		} else {
+			go(219, 0.8);
+			pivot(-90);
+			goForwardUntilStop(0.8);
+			//this extra 10 inches is to fix veering
+			go(10, 0.8);
+			go(-10, 0.8);
+			pivot(-90);
+			go(79, 0.8);
+			pivot(-90);
+			goForwardUntilStop(0.8);
 		}
 	}
 	
-	public void initialExtend() {
-		//retract to rest
-		//extend 15 inches, gearing ratio and stuff
+	/*
+	 * when the robot is in the middle starting position:
+	 * 1. Go forward slightly (to clear itself from the starting position wall)
+	 * 2. Pivot towards and go to the switch (the alliances side)
+	 * 3. Pivot back to face the switch. The robot will be facing towards the enemy alliance's side.
+	 * 4. Place the cube in the switch
+	 */
+	public void middle() {
+		LiftToSwitch();
+		if(switchSide == Side.right) {
+			go(10, 0.8);
+			pivot(11.85);
+			go(82.76, 0.8);
+			pivot(-11.85);
+			goForwardUntilStop(0.8);
+			ejectCube();
+		}else {
+			go(10, 0.8);
+			pivot(-51.27);
+			go(129.47, 0.8);
+			pivot(51.27);
+			goForwardUntilStop(0.8);
+			ejectCube();
+		}
 	}
 	
-	public void dropCube(int heightInches) {
+	/*
+	 * used when robot is parallel to switch or scale. Goal is to place cube in a switch or scale.
+	 * The robot's position will be the same before and after dropCube() runs, because it will double back after placing cube.
+	 */
+	public void dropCubeInSwitch(int heightInches) {
 		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
 		pivot(pivotDegree);
-		//extend arm by height param
-		//forward until encoder senses stop, record
-		int forwardValue = goForwardUntilStop();
-		//place cube - extend arm, open claw
-		//retract arm
-		go(-forwardValue / ticksPerInch);
+		LiftToSwitch();
+		int forwardValue = goForwardUntilStop(0.8);
+		ejectCube();
+		go(-forwardValue / ticksPerInch, 0.8);
+		pivot(-pivotDegree);
+	}
+	
+	public void dropCubeInScale(int heightInInches) {
+		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
 		pivot(pivotDegree);
+		LiftToScale();
+		int forwardValue = goForwardUntilStop(0.8);
+		ejectCube();
+		go(-forwardValue / ticksPerInch, 0.8);
+		pivot(-pivotDegree);
 	}
 	
+	public void ejectCube(){
+		leftClaw.set(clawSpeedMax);
+		rightClaw.set(-clawSpeedMax);
+		try {
+			Thread.sleep(300);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		leftClaw.set(0);
+		rightClaw.set(0);
+	}
+	
+	//Go to closest null area. Used after dropCube();
 	public void goToNull(int distanceInches) {
-		go(distanceInches);
+		go(distanceInches, 0.8);
+		pivot(180);
 	}
 	
+	//go to null section from starting position. Used when we don't know what else to do.
 	public void goToNullFromBeginning(){
 		int pivotDegree = (robotSide == Side.left) ? 90 : -90;
 		if(robotSide == scaleSide) {
-			go(300);
+			go(300, 0.8);
+			pivot(180);
 		}else {
-			go(196);
+			go(196, 0.8);
 			pivot(pivotDegree);
-			
-			//go forward until encoder senses stop
-			pivot(-pivotDegree);
-			go(104);
+			goForwardUntilStop(0.8);
+			go(-10, 0.8);
+			pivot(pivotDegree);
+			go(-104, 0.8);
 		}
 	}
 	
-	public int goForwardUntilStop() {
-		setLeftMotor(0.4);
-		setRightMotor(0.4);
-		leftEncoder.reset();
-		rightEncoder.reset();
-		int lastEncoderValue = leftEncoder.getRaw();
-		while(leftEncoder.getRaw() > lastEncoderValue) {
+	/*
+	 * this will make the robot go forward until it hits a barrier that prevents it from continuing forward.
+	 * The distance that the robot moved forward is returned.
+	 */
+	
+	// public int goForwardUntilStop(double speed) {
+	// 	leftDriveEncoder.reset();
+	// 	rightDriveEncoder.reset();
+	// 	setLeftMotor(speed);
+	// 	setRightMotor(speed);
+	// 	int lastEncoderValue = leftDriveEncoder.getRaw();
+	// 	while(leftDriveEncoder.getRaw() > lastEncoderValue) {
+	// 		try {
+	// 			Thread.sleep(10);
+	// 		} catch (InterruptedException e) {
+	// 			e.printStackTrace();
+	// 		}
+	// 		lastEncoderValue = leftDriveEncoder.getRaw();
+	// 	}
+	// 	setLeftMotor(0);
+	// 	setRightMotor(0);
+		
+	// 	return leftDriveEncoder.getRaw();
+		
+	// }
+
+	public int goForwardUntilStop(double speed) {
+		leftDriveEncoder.reset();
+		rightDriveEncoder.reset();
+		setLeftMotor(speed);
+		setRightMotor(speed);
+		int lastEncoderValue = leftDriveEncoder.getRaw();
+		while(leftDriveEncoder.getRaw() > lastEncoderValue + 5 || leftDriveEncoder.getRaw() > lastEncoderValue - 5) {
 			try {
-				Thread.sleep(10);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			lastEncoderValue = leftEncoder.getRaw();
+			lastEncoderValue = leftDriveEncoder.getRaw();
 		}
 		setLeftMotor(0);
 		setRightMotor(0);
 		
-		return leftEncoder.getRaw();
+		return leftDriveEncoder.getRaw();
 		
 	}
 	
+	//from starting position: go to switch, place cube, go to null territory.
 	public void _switch() {
-		go(140);
-		dropCube(0);
+		go(140, 0.8);
+		dropCubeInSwitch(0);
 		goToNull(160);
 	}
 	
+
+	//from starting position: Go to scale, place cube, go to null territory.
 	public void scale() {
-		go(300);
-		dropCube(55);
+		go(300, 0.8);
+		dropCubeInScale(55);
 		goToNull(0);
 	}
 	
@@ -250,75 +350,67 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		double leftSpeed = -xbox.getRawAxis(1) * speedFactor;
-		double rightSpeed = -xbox.getRawAxis(5) * speedFactor;
+		double leftMotorSpeed = -xbox0.getRawAxis(1) * speedFactor;
+		double rightMotorSpeed = -xbox0.getRawAxis(5) * speedFactor;
 		
-		SmartDashboard.putString("VictorSP Value", "" + clawTest.getRaw());
-		SmartDashboard.putString("Right Encoder", "" + rightEncoder.getRaw());
-		SmartDashboard.putString("Left Encoder", "" + leftEncoder.getRaw());
-		SmartDashboard.putString("Right Speed", "" + rightSpeed);
-		SmartDashboard.putString("Left Speed", "" + leftSpeed);
+		double liftSpeed = -xbox1.getRawAxis(1) * speedFactor;
 		
-		setRightMotor(rightSpeed);
-		//setLeftMotor(left);
+		double clawSpeed = -xbox1.getRawAxis(5) * clawSpeedFactor;
 		
-		clawTest.set(leftSpeed);
+		leftClaw.set(clawSpeed);
+		rightClaw.set(-clawSpeed);
 		
-		if(xbox.getBButton()) {
-            //commenting out for safety, only uncomment when testing
-			//go(48);
-		}
-		
-
-		if(xbox.getStartButton()) {
-            leftEncoder.reset();
-            rightEncoder.reset();
-		}
-		
-		if(xbox.getBackButton()) {
-            rumbleOn = (rumbleOn) ? false : true;
-            if(rumbleOn){
-                xbox.setRumble(kLeftRumble, 1.0);
-            }else{
-                xbox.setRumble(kLeftRumble, 0.0);
-            }
-		}
-//		if(xbox.getStartButtonPressed())
-//		{
-//			rightEncoder.reset();
-//			leftEncoder.reset();
+//		if(xbox0.getBumper(Hand.kLeft)) {
+//			leftClaw.set(clawSpeedMax);
+//			rightClaw.set(-clawSpeedMax);
+//		}else if(xbox0.getBumper(Hand.kRight)) {
+//			leftClaw.set(clawSpeedMax);
+//			rightClaw.set(-clawSpeedMax);
+//		}else {
+//			leftClaw.set(0);
+//			rightClaw.set(0);
 //		}
-				
 		
-		if(xbox.getAButtonPressed())
-		{
-			if(!clawClosed)
-			{
-				claw.setAngle(closeClawAngle);
-			}
-			else
-			{
-				claw.setAngle(closeClawAngle + 90);
-			}
-			clawClosed = !clawClosed;
-			
+		
+		if(xbox1.getAButton()) {
+			//TODO winchRetract
 		}
 		
-		SmartDashboard.putString("Claw", "" + claw.getAngle());
+		if(xbox1.getYButton()) {
+			//TODO winchPull
+		}
+		
+		
+		SmartDashboard.putString("Right Encoder", "" + rightDriveEncoder.getRaw());
+		SmartDashboard.putString("Left Encoder", "" + leftDriveEncoder.getRaw());
+		SmartDashboard.putString("Right Speed", "" + rightMotorSpeed);
+		SmartDashboard.putString("Left Speed", "" + leftMotorSpeed);
+		
+		setRightMotor(rightMotorSpeed);
+		setLeftMotor(leftMotorSpeed);
+		setLift(liftSpeed);
+		
+		SmartDashboard.putString("claw speed max", "" + clawSpeedMax);
+
+		if(xbox0.getStartButton()) {
+            leftDriveEncoder.reset();
+            rightDriveEncoder.reset();
+		}
 		
 	}
 
-	private void go(int distanceInches)
+	//move the robot straight by a number of inches. Forwards and backwards support.
+	private void go(double distanceInches, double speed)
 	{
-		rightEncoder.reset();
-		final double maximumSpeed = (distanceInches > 0) ? 0.5 : -0.5;
+		rightDriveEncoder.reset();
+		final double maximumSpeed = (distanceInches > 0) ? speed : -speed;
 		
-		final int totalTicks = Math.abs(ticksPerInch * distanceInches);
+		final double totalTicks = Math.abs(ticksPerInch * distanceInches);
 		
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
 		
-		while(Math.abs(rightEncoder.getRaw()) < totalTicks)
+		while(Math.abs(rightDriveEncoder.getRaw()) < totalTicks)
 		{ }
 		
 		final double stopValue = (distanceInches > 0) ? -0.1 : 0.1;
@@ -328,7 +420,6 @@ public class Robot extends IterativeRobot {
 		try {
 			Thread.sleep(100);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -336,14 +427,77 @@ public class Robot extends IterativeRobot {
 		
 		
 	}
+
+	// private void go(double distanceInches, double speed)
+	// {
+	// 	rightDriveEncoder.reset();
+	// 	final double maximumSpeed = (distanceInches > 0) ? speed : -speed;
+		
+	// 	final double totalTicks = Math.abs(ticksPerInch * distanceInches);
+		
+	// 	double leftSpeed = maximumSpeed;
+	// 	double rightSpeed = maximumSpeed;
+
+	// 	setLeftMotor(leftSpeed);
+	// 	setRightMotor(rightSpeed);
+		
+	// 	while(Math.abs(rightDriveEncoder.getRaw()) < totalTicks)
+	// 	{ 
+	// 		if(leftEncoder.getRaw() > rightEncoder.getRaw + ticksPerInch){
+	// 			leftSpeed -= 0.01;
+	// 		}else if(rightEncoder.getRaw() > leftEncoder.getRaw + ticksPerInch){
+	// 			rightSpeed -= 0.01;
+	// 		}
+	// 		setLeftMotor(leftSpeed);
+	// 		setRightMotor(rightSpeed);
+	// 	}
+		
+	// 	final double stopValue = (distanceInches > 0) ? -0.1 : 0.1;
+	// 	setLeftMotor(stopValue);
+	// 	setRightMotor(stopValue);
+		
+	// 	try {
+	// 		Thread.sleep(100);
+	// 	} catch (InterruptedException e) {
+	// 		e.printStackTrace();
+	// 	}
+		
+	// 	setMotorSpeed(0);
+		
+	// }
 	
-	private void pivot(int degree) {
+	//sets the lift speed (0 - 1)
+	private void setLift(double speed) {
+		lift.set(speed);
+	}
+	
+	private void Lift(int seconds) {
+		lift.set(0.5);
+		try {
+			Thread.sleep(seconds * 100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		lift.set(0);
+	}
+	
+	public void LiftToSwitch() {
+		Lift(3);
+	}
+	
+	public void LiftToScale() {
+		//TODO: how many seconds?
+		Lift(5);
+	}
+	
+	//pivot by a number of degrees. Supports negative (counter-clockwise) values.
+	private void pivot(double degree) {
 		
-		final int fractionOfCircle = 360 / degree;
-		final int ticksForDegree = Math.abs((int) ((turnCircumference / fractionOfCircle) * ticksPerInch));
+		final double fractionOfCircle = 360 / degree;
+		final double ticksForDegree = Math.abs((turnCircumference / fractionOfCircle) * ticksPerInch);
 		
-		leftEncoder.reset();
-		rightEncoder.reset();
+		leftDriveEncoder.reset();
+		rightDriveEncoder.reset();
 		
 		final double speed = (degree > 0) ? 0.5 : -0.5;
 		
@@ -352,10 +506,11 @@ public class Robot extends IterativeRobot {
 		
 		while(true)
 		{
-			boolean rightDone = Math.abs(rightEncoder.getRaw()) > ticksForDegree;
-			boolean leftDone = Math.abs(leftEncoder.getRaw()) > ticksForDegree;
+			boolean rightDone = Math.abs(rightDriveEncoder.getRaw()) > ticksForDegree;
+			boolean leftDone = Math.abs(leftDriveEncoder.getRaw()) > ticksForDegree;
 			
 			if(rightDone) {
+
 				setRightMotor(0);
 			}
 			if(leftDone) {
@@ -367,25 +522,42 @@ public class Robot extends IterativeRobot {
 			}
 		}
 		
+		if(degree > 0){
+			setLeftMotor(-.01);
+			setRightMotor(.01);
+		}else if(degree < 0){
+			setLeftMotor(.01);
+			setRightMotor(-.01);
+		}
+
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
 		setLeftMotor(0);
 		setRightMotor(0);
 		
 	}
 
+	//sets the left drive motor speed (0 - 1)
 	private void setLeftMotor(double speed) {
-		left.set(speed);
+		leftDrive.set(speed);
 	}
 
+	//sets both motor speeds (0 - 1)
 	private void setMotorSpeed(double speed) 
 	{
 		setLeftMotor(speed);
 		setRightMotor(speed);
 	}
 
+	//sets the right motor speed (0 - 1)
 	private void setRightMotor(double speed) {
 		//multiplying by 0.94 is a fix for weird offset between left and right motors
 		speed = speed * 0.94;
-		right.set(-speed);
+		rightDrive.set(-speed);
 	}
 
 	/**
