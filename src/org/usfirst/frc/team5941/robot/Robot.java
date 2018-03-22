@@ -21,15 +21,14 @@ import edu.wpi.first.wpilibj.GenericHID.Hand;
 import edu.wpi.first.wpilibj.DigitalInput;
 
 /*
- * inputs for everything
  * 
+ * //TODO:
  * veering
  * goForwardUntilStop()
- * speed - feet per second
- * placing cubes on switch and scale
- * middle()
- * teleop
- * what do we do after we place a cube? Go to Null?
+ * TEST placing cubes on switch and scale
+ * middle() is just going to be crossing the line
+ * teleop -- one and two controller code
+ * what do we do after we place a cube?
  * 
  * 
  */
@@ -56,6 +55,9 @@ public class Robot extends IterativeRobot {
 	private VictorSP rightDrive = new VictorSP(1);
 	private VictorSP leftDrive = new VictorSP(0);	
 	
+	Encoder rightDriveEncoder = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
+	Encoder leftDriveEncoder = new Encoder(0, 1, true, Encoder.EncodingType.k4X);
+
 	private VictorSP lift = new VictorSP(4);
 	
 	
@@ -67,8 +69,7 @@ public class Robot extends IterativeRobot {
 	
 	DigitalInput limitSwitch = new DigitalInput(9);
 	
-	Encoder rightDriveEncoder = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
-	Encoder leftDriveEncoder = new Encoder(0, 1, true, Encoder.EncodingType.k4X);
+
 	Encoder liftEncoder = new Encoder(4, 5, true, Encoder.EncodingType.k4X);
 	
 	final static int TICKS_PER_FOOT = 545;
@@ -92,7 +93,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	enum Option {
-		_switch, scale, crossSwitch, crossScale
+		_switch, scale, crossLine
 	}
 
 	
@@ -104,13 +105,13 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void robotInit() {
-		robotSide_chooser.addObject("Middle", Side.middle);
 		robotSide_chooser.addObject("Left", Side.left);
 		robotSide_chooser.addObject("Right", Side.right);
 		SmartDashboard.putData("Robot Starting Position", robotSide_chooser);
 		
 		preference_chooser.addObject("switch", Option._switch);
 		preference_chooser.addObject("scale", Option.scale);
+		preference_chooser.addObject("Cross Line", Option.cross_line);
 		SmartDashboard.putData("Preference", preference_chooser);
 	}
 
@@ -121,7 +122,7 @@ public class Robot extends IterativeRobot {
 		while(gameData.length() < 1) {
 			gameData = DriverStation.getInstance().getGameSpecificMessage();
 			if (t.get() > 3) {
-			  go(-132, 0.3);
+			  baseLine();
 			  return;
 			}
 		}
@@ -156,51 +157,13 @@ public class Robot extends IterativeRobot {
 //		} else if(scaleSide == robotSide) {
 //			scale();
 //		} else if(switchSide == scaleSide){
-//			crossSwitch();
+//			crossLine();
 //		} else if(robotSide == Side.middle) {
-//			middle();
-		
-			if(gameData.charAt(0) == 'L') {
-				go(12, .5);
-				//LiftToSwitch() or liftToScale();
-				//go forward
-				//release
-			}else if(gameData.charAt(0) == 'R') {
-				go(-10, .5);
-				ejectCube();
-			}
-
-		}
+//			crossLine();
 		
 
-	
-	//TODO
-	public void crossSwitch() {
-		if(robotSide == Side.left) {
-			go(219, 0.8);
-			pivot(90);
-			goForwardUntilStop(0.8);
-			//this extra 10 inches is to fix veering
-			go(10, 0.8);
-			go(-10, 0.8);
-			pivot(90);
-			go(79, 0.8);
-			pivot(90);
-			goForwardUntilStop(0.8);
-			//TODO: place cube
-		} else {
-			go(219, 0.8);
-			pivot(-90);
-			goForwardUntilStop(0.8);
-			//this extra 10 inches is to fix veering
-			go(10, 0.8);
-			go(-10, 0.8);
-			pivot(-90);
-			go(79, 0.8);
-			pivot(-90);
-			goForwardUntilStop(0.8);
+
 		}
-	}
 	
 	@Override
 	public void autonomousPeriodic() {
@@ -217,6 +180,10 @@ public class Robot extends IterativeRobot {
 	 * 3. Pivot back to face the switch. The robot will be facing towards the enemy alliance's side.
 	 * 4. Place the cube in the switch
 	 */
+	public void baseLine(){
+		go(132, 0.5);
+	}
+	
 	public void middle() {
 		LiftToSwitch();
 		if(switchSide == Side.right) {
@@ -351,11 +318,11 @@ public class Robot extends IterativeRobot {
 		double leftSpeed = -xbox0.getRawAxis(1) * SPEEDFACTOR;
 		double rightSpeed = -xbox0.getRawAxis(5) * SPEEDFACTOR;
 		
-		//two controller code
-		//double liftSpeed = xbox1.getRawAxis(1) * liftSpeedFactor;
-		//double clawSpeed = xbox1.getRawAxis(5) * clawSpeedFactor;
-//		leftClaw.set(-clawSpeed);
-//		rightClaw.set(clawSpeed);
+		// two controller code
+		// double liftSpeed = xbox1.getRawAxis(1) * liftSpeedFactor;
+		// double clawSpeed = xbox1.getRawAxis(5) * clawSpeedFactor;
+		// leftClaw.set(-clawSpeed);
+		// rightClaw.set(clawSpeed);
 		
 		
 		double liftSpeedUp = xbox0.getTriggerAxis(Hand.kLeft) * .8;
