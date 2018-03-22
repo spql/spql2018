@@ -93,7 +93,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	enum Option {
-		_switch, scale, crossLine
+		_switch, scale, baseline
 	}
 
 	
@@ -105,13 +105,13 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void robotInit() {
-		robotSide_chooser.addObject("Left", Side.left);
+		robotSide_chooser.addDefault("Left", Side.left);
 		robotSide_chooser.addObject("Right", Side.right);
 		SmartDashboard.putData("Robot Starting Position", robotSide_chooser);
 		
 		preference_chooser.addObject("switch", Option._switch);
 		preference_chooser.addObject("scale", Option.scale);
-		preference_chooser.addObject("Cross Line", Option.cross_line);
+		preference_chooser.addDefault("Cross Line", Option.baseline);
 		SmartDashboard.putData("Preference", preference_chooser);
 	}
 
@@ -139,31 +139,27 @@ public class Robot extends IterativeRobot {
 			scaleSide = Side.right;
 		}
 		
-//		while(robotSide == null || preference == null) {
-//			robotSide = robotSide_chooser.getSelected();
-//			preference = preference_chooser.getSelected();
-//		}
+		robotSide = robotSide_chooser.getSelected();
+		preference = preference_chooser.getSelected();
 
 		
-//		//main logic
-//		if(switchSide == robotSide && scaleSide == robotSide) {
-//			if(preference == Option._switch) {
-//				_switch();
-//			} else {
-//				scale();
-//			}
-//		} else if(switchSide == robotSide){
-//			_switch();
-//		} else if(scaleSide == robotSide) {
-//			scale();
-//		} else if(switchSide == scaleSide){
-//			crossLine();
-//		} else if(robotSide == Side.middle) {
-//			crossLine();
-		
-
-
+		if(preference == Option._switch && robotSide == switchSide) {
+				go(5, 0.5);
+				LiftToSwitch();
+				go(96, 0.5);
+				ejectCube();
+				return;
+		}else if(preference == Option.scale && robotSide == scaleSide) {
+				go(5, 0.5);
+				//other stuff
+				return;
+		}else {
+			baseLine();
 		}
+		
+
+
+	}
 	
 	@Override
 	public void autonomousPeriodic() {
@@ -315,8 +311,8 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		double leftSpeed = -xbox0.getRawAxis(1) * SPEEDFACTOR;
-		double rightSpeed = -xbox0.getRawAxis(5) * SPEEDFACTOR;
+		double leftSpeed = -xbox0.getRawAxis(1) * SPEED_FACTOR;
+		double rightSpeed = -xbox0.getRawAxis(5) * SPEED_FACTOR;
 		
 		// two controller code
 		// double liftSpeed = xbox1.getRawAxis(1) * liftSpeedFactor;
@@ -424,8 +420,8 @@ public class Robot extends IterativeRobot {
 	//pivot by a number of degrees. Supports negative (counter-clockwise) values.
 	private void pivot(double degree) {
 		
-		final double FRACTION_OF_CIRCLE = 360 / degree;
-		final double TICKS_FOR_DEGREE = Math.abs((TURN_CIRCUMFERENCE / FRACTION_OF_CIRCLE) * TICKS_PER_INCH);
+		final double FRACTION_OF_CIRCLE = degree / 360;
+		final double TICKS_FOR_DEGREE = Math.abs((TURN_CIRCUMFERENCE * FRACTION_OF_CIRCLE) * TICKS_PER_INCH);
 		
 		leftDriveEncoder.reset();
 		rightDriveEncoder.reset();
@@ -447,7 +443,8 @@ public class Robot extends IterativeRobot {
 				setLeftMotor(0);
 			}
 			
-			if(rightDone && leftDone) {
+			//TODO change back to ampersand if needed
+			if(rightDone || leftDone) {
 				break;
 			}
 		}
