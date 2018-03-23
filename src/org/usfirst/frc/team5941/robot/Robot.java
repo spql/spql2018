@@ -41,6 +41,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
  */
 public class Robot extends IterativeRobot {
 	private static final int ROBOT_WIDTH_INCHES = 25;
+	
 	private static final double TURN_CIRCUMFERENCE = ROBOT_WIDTH_INCHES * Math.PI;
 	private static final double SPEED_FACTOR = 0.8;
 	private static final double LIFT_SPEED_FACTOR = 0.5;
@@ -144,18 +145,31 @@ public class Robot extends IterativeRobot {
 
 		
 		if(preference == Option._switch && robotSide == switchSide) {
-				go(5, 0.5);
+				go(5, 0.3);
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				LiftToSwitch();
-				go(96, 0.5);
+				go(85, 0.5);
 				ejectCube();
 				return;
 		}else if(preference == Option.scale && robotSide == scaleSide) {
-				go(5, 0.5);
+				go(5, 0.3);
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				//other stuff
 				return;
 		}else {
 			baseLine();
 		}
+		
 		
 
 
@@ -177,7 +191,7 @@ public class Robot extends IterativeRobot {
 	 * 4. Place the cube in the switch
 	 */
 	public void baseLine(){
-		go(132, 0.5);
+		go(132 - 38, 0.3);
 	}
 	
 	public void middle() {
@@ -267,6 +281,12 @@ public class Robot extends IterativeRobot {
 		setLeftMotor(speed);
 		setRightMotor(speed);
 		int lastEncoderValue = leftDriveEncoder.getRaw();
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		while(leftDriveEncoder.getRaw() > lastEncoderValue) {
 			try {
 				Thread.sleep(10);
@@ -306,35 +326,38 @@ public class Robot extends IterativeRobot {
 	{
 		go(240, 0.7);
 	}
-	/**
-	 * This function is called periodically during operator control.
-	 */
+
+	@Override
+	public void teleopInit() {
+		liftEncoder.reset();
+	}
+	
 	@Override
 	public void teleopPeriodic() {
 		double leftSpeed = -xbox0.getRawAxis(1) * SPEED_FACTOR;
 		double rightSpeed = -xbox0.getRawAxis(5) * SPEED_FACTOR;
 		
 		// two controller code
-		// double liftSpeed = xbox1.getRawAxis(1) * liftSpeedFactor;
-		// double clawSpeed = xbox1.getRawAxis(5) * clawSpeedFactor;
-		// leftClaw.set(-clawSpeed);
-		// rightClaw.set(clawSpeed);
+		 double liftSpeed = xbox1.getRawAxis(1) * LIFT_SPEED_FACTOR;
+		 double clawSpeed = xbox1.getRawAxis(5) * CLAW_SPEED_FACTOR;
+		 leftClaw.set(-clawSpeed);
+		 rightClaw.set(clawSpeed);
 		
 		
-		double liftSpeedUp = xbox0.getTriggerAxis(Hand.kLeft) * .8;
-		double liftSpeedDown = xbox0.getTriggerAxis(Hand.kRight) * .8;
-		double liftSpeed = (liftSpeedUp -liftSpeedDown);
+//		double liftSpeedUp = xbox0.getTriggerAxis(Hand.kLeft) * .8;
+//		double liftSpeedDown = xbox0.getTriggerAxis(Hand.kRight) * .8;
+//		double liftSpeed = (liftSpeedUp -liftSpeedDown);
 		
-		if(xbox0.getBumper(Hand.kLeft)) {
-			leftClaw.set(-CLAW_SPEED_INTAKE_MAX);
-			rightClaw.set(CLAW_SPEED_INTAKE_MAX);
-		}else if(xbox0.getBumper(Hand.kRight)) {
-			leftClaw.set(CLAW_SPEED_EJECT_MAX);
-			rightClaw.set(-CLAW_SPEED_EJECT_MAX);
-		}else {
-			leftClaw.set(0);
-			rightClaw.set(0);
-		}
+//		if(xbox0.getBumper(Hand.kLeft)) {
+//			leftClaw.set(-CLAW_SPEED_INTAKE_MAX);
+//			rightClaw.set(CLAW_SPEED_INTAKE_MAX);
+//		}else if(xbox0.getBumper(Hand.kRight)) {
+//			leftClaw.set(CLAW_SPEED_EJECT_MAX);
+//			rightClaw.set(-CLAW_SPEED_EJECT_MAX);
+//		}else {
+//			leftClaw.set(0);
+//			rightClaw.set(0);
+//		}
 		
 		
 		SmartDashboard.putString("Right Encoder", "" + rightDriveEncoder.getRaw());
@@ -402,15 +425,16 @@ public class Robot extends IterativeRobot {
 	}
 	
 	private void Lift(int ticks) {
-		lift.set(0.5);
-		while(liftEncoder.getRaw() < ticks) {
+		liftEncoder.reset();
+		lift.set(-0.5);
+		while(Math.abs(liftEncoder.getRaw()) < ticks) {
 			
 		}
 		lift.set(0);
 	}
 	
 	public void LiftToSwitch() {
-		Lift(5900);
+		Lift(8000);
 	}
 	
 	public void LiftToScale() {
@@ -447,7 +471,19 @@ public class Robot extends IterativeRobot {
 			if(rightDone || leftDone) {
 				break;
 			}
+
 		}
+		final double stopValue = (degree > 0) ? -0.1 : 0.1;
+		setLeftMotor(stopValue);
+		setRightMotor(-stopValue);
+		
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		setMotorSpeed(0);
 		
 		setLeftMotor(0);
 		setRightMotor(0);
@@ -456,7 +492,7 @@ public class Robot extends IterativeRobot {
 
 	//sets the left drive motor speed (0 - 1)
 	private void setLeftMotor(double speed) {
-		leftDrive.set(speed * .92);
+		leftDrive.set(speed);
 	}
 
 	//sets both motor speeds (0 - 1)
@@ -468,7 +504,7 @@ public class Robot extends IterativeRobot {
 
 	//sets the right motor speed (0 - 1)
 	private void setRightMotor(double speed) {
-		rightDrive.set(-speed);
+		rightDrive.set(-speed * .92);
 	}
 
 	/**
