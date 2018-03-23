@@ -339,6 +339,13 @@ public class Robot extends IterativeRobot {
 		
 		// two controller code
 		 double liftSpeed = xbox1.getRawAxis(1) * LIFT_SPEED_FACTOR;
+		 
+		 //safegaurd for lift
+		 if(liftSpeed > 0 && liftEncoder.getRaw() > 13278) {
+			 liftSpeed = 0;
+		 } else if(liftSpeed < 0 && liftEncoder.getRaw() < 0) {
+			 liftSpeed = 0;
+		 }
 		 double clawSpeed = xbox1.getRawAxis(5) * CLAW_SPEED_FACTOR;
 		 leftClaw.set(-clawSpeed);
 		 rightClaw.set(clawSpeed);
@@ -428,7 +435,9 @@ public class Robot extends IterativeRobot {
 		liftEncoder.reset();
 		lift.set(-0.5);
 		while(Math.abs(liftEncoder.getRaw()) < ticks) {
-			
+			if(liftEncoder.getRaw() > 13278) {
+				break;
+			}
 		}
 		lift.set(0);
 	}
