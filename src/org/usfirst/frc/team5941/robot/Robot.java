@@ -120,6 +120,7 @@ public class Robot extends IterativeRobot {
 	public void autonomousInit() {
 		Timer t = new Timer();
 		t.start();
+		gameData = "";
 		while(gameData.length() < 1) {
 			gameData = DriverStation.getInstance().getGameSpecificMessage();
 			if (t.get() > 3) {
@@ -143,37 +144,99 @@ public class Robot extends IterativeRobot {
 		robotSide = robotSide_chooser.getSelected();
 		preference = preference_chooser.getSelected();
 
+        if(preference == Option._switch && robotSide == switchSide) {
+            go(5, 0.3);
+            try {
+                    Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+            }
+            LiftToSwitch();
+            go(85, 0.5);
+            ejectCube();
+            return;
+        }else if(preference == Option.scale && robotSide == scaleSide) {
+            go(5, 0.3);
+            try {
+                    Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+            }
+            //other stuff
+            return;
+        }else {
+        	baseLine();
+        }
+        
 		
-		if(preference == Option._switch && robotSide == switchSide) {
-				go(5, 0.3);
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				LiftToSwitch();
-				go(85, 0.5);
-				ejectCube();
-				return;
-		}else if(preference == Option.scale && robotSide == scaleSide) {
-				go(5, 0.3);
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				//other stuff
-				return;
-		}else {
-			baseLine();
-		}
+//		if(preference == Option._switch) {
+//			if(robotSide == switchSide) {
+//				doTheSwitch();
+//			}else if(robotSide == scaleSide) {
+//				doTheScale();
+//			}else {
+//				baseLine();
+//			}
+//		}else if(preference == Option.scale) {
+//			if(robotSide == scaleSide) {
+//				doTheScale();
+//			}else if(robotSide == switchSide) {
+//				doTheSwitch();
+//			}else {
+//				baseLine();
+//			}
+//		}else {
+//			baseLine();
+//		}
 		
 		
 
 
 	}
+
+	private void doTheSwitch() {
+		go(5, 0.3);
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		LiftToSwitch();
+		go(82, 0.3);
+		if(robotSide == Side.left) {
+			pivot(45);
+		}else {
+			pivot(-45);
+		}
+		
+		go(35, 0.3);
+		ejectCube();
+		return;
+	}
+
+	private void doTheScale() {
+		go(5, 0.3);
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		go(82 + 160, 0.3);
+		if(robotSide == Side.left) {
+			pivot(45);
+		}else {
+			pivot(-45);
+		}
+		LiftToScale();
+		go(35, 0.3);
+		ejectCube();
+		return;
+	}
+	
 	
 	@Override
 	public void autonomousPeriodic() {
@@ -340,12 +403,12 @@ public class Robot extends IterativeRobot {
 		// two controller code
 		 double liftSpeed = xbox1.getRawAxis(1) * LIFT_SPEED_FACTOR;
 		 
-		 //safegaurd for lift
-		 if(liftSpeed > 0 && liftEncoder.getRaw() > 13278) {
-			 liftSpeed = 0;
-		 } else if(liftSpeed < 0 && liftEncoder.getRaw() < 0) {
-			 liftSpeed = 0;
-		 }
+//		 //safegaurd for lift
+//		 if(liftSpeed > 0 && liftEncoder.getRaw() > 13278) {
+//			 liftSpeed = 0;
+//		 } else if(liftSpeed < 0 && liftEncoder.getRaw() < 0) {
+//			 liftSpeed = 0;
+//		 }
 		 double clawSpeed = xbox1.getRawAxis(5) * CLAW_SPEED_FACTOR;
 		 leftClaw.set(-clawSpeed);
 		 rightClaw.set(clawSpeed);
@@ -404,7 +467,7 @@ public class Robot extends IterativeRobot {
 //			}else if(leftDriveEncoder.getRaw() < rightDriveEncoder.getRaw()) {
 //				rightSpeed -= 0.001;
 //			}
-			if(timer.get() > 10) {
+			if(timer.get() > 3) {
 				break;
 			}
 //			setLeftMotor(leftSpeed);
@@ -443,7 +506,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	public void LiftToSwitch() {
-		Lift(8000);
+		Lift(9000);
 	}
 	
 	public void LiftToScale() {
