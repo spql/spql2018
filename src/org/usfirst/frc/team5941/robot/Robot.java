@@ -44,7 +44,7 @@ public class Robot extends IterativeRobot {
 	
 	private static final double TURN_CIRCUMFERENCE = ROBOT_WIDTH_INCHES * Math.PI;
 	private static final double SPEED_FACTOR = 0.8;
-	private static final double LIFT_SPEED_FACTOR = 0.5;
+	private static final double LIFT_SPEED_FACTOR = 0.7;
 	private static final double CLAW_SPEED_FACTOR = 0.9;
 	
 	private SendableChooser<Side> robotSide_chooser = new SendableChooser<>();
@@ -255,6 +255,10 @@ public class Robot extends IterativeRobot {
 	 */
 	public void baseLine(){
 		go(132 - 38, 0.3);
+	}
+	
+	public void baseLineScale(){
+		go(140, 0.3);
 	}
 	
 	public void middle() {
