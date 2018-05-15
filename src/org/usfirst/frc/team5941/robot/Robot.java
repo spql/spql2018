@@ -118,58 +118,62 @@ public class Robot extends IterativeRobot {
 
 	@Override
 	public void autonomousInit() {
-		Timer t = new Timer();
-		t.start();
-		gameData = "";
-		while(gameData.length() < 1) {
-			gameData = DriverStation.getInstance().getGameSpecificMessage();
-			if (t.get() > 3) {
-			  baseLine();
-			  return;
-			}
-		}
+		go(60, 0.6);
+		return;
+//		
+//		Timer t = new Timer();
+//		t.start();
+//		gameData = "";
+//		while(gameData.length() < 1) {
+//			gameData = DriverStation.getInstance().getGameSpecificMessage();
+//			if (t.get() > 3) {
+//			  baseLine();
+//			  return;
+//			}
+//		}
+//		
+//		if(gameData.charAt(0) == 'L') {
+//			switchSide = Side.left;
+//		} else {
+//			switchSide = Side.right;
+//		}
+//		
+//		if(gameData.charAt(1) == 'L') {
+//			scaleSide = Side.left;
+//		}else {
+//			scaleSide = Side.right;
+//		}
+//		
+//		robotSide = robotSide_chooser.getSelected();
+//		preference = preference_chooser.getSelected();
+//
+//        if(preference == Option._switch && robotSide == switchSide) {
+//            go(5, 0.3);
+//            try {
+//                    Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                    // TODO Auto-generated catch block
+//                    e.printStackTrace();
+//            }
+//            LiftToSwitch();
+//            go(85, 0.5);
+//            ejectCube();
+//            return;
+//        }else if(preference == Option.scale && robotSide == scaleSide) {
+//            go(5, 0.3);
+//            try {
+//                    Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                    // TODO Auto-generated catch block
+//                    e.printStackTrace();
+//            }
+//            //other stuff
+//            return;
+//        }else {
+//        	baseLine();
+//        }
+//        
 		
-		if(gameData.charAt(0) == 'L') {
-			switchSide = Side.left;
-		} else {
-			switchSide = Side.right;
-		}
-		
-		if(gameData.charAt(1) == 'L') {
-			scaleSide = Side.left;
-		}else {
-			scaleSide = Side.right;
-		}
-		
-		robotSide = robotSide_chooser.getSelected();
-		preference = preference_chooser.getSelected();
-
-        if(preference == Option._switch && robotSide == switchSide) {
-            go(5, 0.3);
-            try {
-                    Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-            }
-            LiftToSwitch();
-            go(85, 0.5);
-            ejectCube();
-            return;
-        }else if(preference == Option.scale && robotSide == scaleSide) {
-            go(5, 0.3);
-            try {
-                    Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-            }
-            //other stuff
-            return;
-        }else {
-        	baseLine();
-        }
-        
 		
 //		if(preference == Option._switch) {
 //			if(robotSide == switchSide) {
@@ -456,7 +460,7 @@ public class Robot extends IterativeRobot {
 		rightDriveEncoder.reset();
 		final double maximumSpeed = (distanceInches > 0) ? speed : -speed;
 		
-		final double totalTicks = Math.abs(TICKS_PER_INCH * distanceInches);
+		final int totalTicks = (int) Math.abs(TICKS_PER_INCH * distanceInches);
 		
 		double leftSpeed = maximumSpeed;
 		double rightSpeed = maximumSpeed;
@@ -464,31 +468,43 @@ public class Robot extends IterativeRobot {
 		setLeftMotor(maximumSpeed);
 		setRightMotor(maximumSpeed);
 		
-		while(Math.abs(rightDriveEncoder.getRaw()) < totalTicks)
+		//while(Math.abs(rightDriveEncoder.getRaw()) < totalTicks && Math.abs(leftDriveEncoder.getRaw()) < totalTicks)
+		while(true)
 		{ 
-//			if(leftDriveEncoder.getRaw() > rightDriveEncoder.getRaw()) {
+			
+			SmartDashboard.putString("Right Encoder", "" + rightDriveEncoder.getRaw());
+			SmartDashboard.putString("Left Encoder", "" + leftDriveEncoder.getRaw());
+			SmartDashboard.putString("Left speed", "" + leftSpeed);
+			SmartDashboard.putString("right speed", "" + rightSpeed);
+			System.out.println("right encoder " + rightDriveEncoder.getRaw());
+			System.out.println("left encoder " + leftDriveEncoder.getRaw());
+			System.out.println("left speed " + leftSpeed);
+			System.out.println("right speed " + rightSpeed);
+//			if(leftDriveEncoder.getRaw() < rightDriveEncoder.getRaw()) {
 //				leftSpeed += 0.0001;
-//			}else if(leftDriveEncoder.getRaw() < rightDriveEncoder.getRaw()) {
-//				rightSpeed -= 0.001;
+//			}else if(leftDriveEncoder.getRaw() > rightDriveEncoder.getRaw()) {
+//				leftSpeed -= 0.0001;
 //			}
-			if(timer.get() > 3) {
-				break;
+			
+//			if(timer.get() > 3) {
+//				break;
+//			}
+			setLeftMotor(leftSpeed);
+			setRightMotor(rightSpeed);
+			
+			if(Math.abs(rightDriveEncoder.getRaw()) > totalTicks * 0.8) {
+				int SP = totalTicks;
+				int rPV = Math.abs(rightDriveEncoder.getRaw());
+				int lPV = Math.abs(leftDriveEncoder.getRaw());
+				double k = maximumSpeed / (SP * 0.2);
+				leftSpeed = k * (SP - lPV);
+				rightSpeed = k * (SP - rPV);
 			}
-//			setLeftMotor(leftSpeed);
-//			setRightMotor(rightSpeed);
 		}
 		
-		final double stopValue = (distanceInches > 0) ? -0.1 : 0.1;
-		setLeftMotor(stopValue);
-		setRightMotor(stopValue);
+
 		
-		try {
-			Thread.sleep(100);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		setMotorSpeed(0);
+		//setMotorSpeed(0);
 		
 		
 	}
